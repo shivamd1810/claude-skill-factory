@@ -1,0 +1,192 @@
+name: Validate Skills
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'templates/**'
+      - 'examples/**'
+      - 'scripts/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'templates/**'
+      - 'examples/**'
+      - 'scripts/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate templates
+        run: |
+          echo "Validating skill templates..."
+
+          # Check that all template files exist and have valid structure
+          for template_dir in templates/*/; do
+            template_name=$(basename "$template_dir")
+            echo "Checking template: $template_name"
+
+            # Check SKILL.template.md exists
+            if [ ! -f "${template_dir}SKILL.template.md" ]; then
+              echo "ERROR: Missing SKILL.template.md in $template_name"
+              exit 1
+            fi
+
+            # Check template has frontmatter
+            if ! head -1 "${template_dir}SKILL.template.md" | grep -q "^---"; then
+              echo "ERROR: Missing frontmatter in $template_name"
+              exit 1
+            fi
+
+            echo "  OK: $template_name"
+          done
+
+          echo "All templates validated!"
+
+      - name: Validate example skills
+        if: hashFiles('examples/*/SKILL.md') != ''
+        run: |
+          echo "Validating example skills..."
+
+          for skill_dir in examples/*/; do
+            if [ -f "${skill_dir}SKILL.md" ]; then
+              skill_name=$(basename "$skill_dir")
+              echo "Validating: $skill_name"
+
+              # Run validation
+              python3 scripts/validate-skill.py "$skill_dir" --json > /tmp/validation.json
+
+              # Check if all passed
+              if ! python3 -c "import json; data=json.load(open('/tmp/validation.json')); exit(0 if data['all_passed'] else 1)"; then
+                echo "ERROR: Validation failed for $skill_name"
+                cat /tmp/validation.json
+                exit 1
+              fi
+
+              # Run scoring
+              python3 scripts/score-skill.py "$skill_dir" --json > /tmp/score.json
+              score=$(python3 -c "import json; print(json.load(open('/tmp/score.json'))['score'])")
+
+              echo "  Score: $score/100"
+
+              # Require minimum score of 70 for examples
+              if (( $(echo "$score < 70" | bc -l) )); then
+                echo "ERROR: Score too low for $skill_name (minimum 70 required)"
+                exit 1
+              fi
+
+              echo "  OK: $skill_name"
+            fi
+          done
+
+          echo "All example skills validated!"
+
+      - name: Check scripts are executable
+        run: |
+          echo "Checking script permissions..."
+
+          for script in scripts/*.py; do
+            if [ ! -x "$script" ]; then
+              echo "WARNING: $script is not executable"
+              # Don't fail, just warn (git may not preserve +x)
+            fi
+          done
+
+          echo "Script check complete!"
+
+      - name: Run script syntax check
+        run: |
+          echo "Checking Python syntax..."
+
+          for script in scripts/*.py; do
+            echo "Checking: $script"
+            python3 -m py_compile "$script"
+          done
+
+          echo "All scripts have valid syntax!"
+
+  lint-markdown:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check markdown files exist
+        run: |
+          echo "Checking required markdown files..."
+
+          required_files=(
+            "README.md"
+            "CONTRIBUTING.md"
+            "CHANGELOG.md"
+            "SKILL.md"
+          )
+
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "ERROR: Missing required file: $file"
+              exit 1
+            fi
+            echo "  OK: $file"
+          done
+
+          echo "All required files present!"
+
+      - name: Check command files
+        run: |
+          echo "Checking command files..."
+
+          required_commands=(
+            "commands/create-skill.md"
+            "commands/validate-skill.md"
+            "commands/skill-score.md"
+            "commands/package-skill.md"
+          )
+
+          for cmd in "${required_commands[@]}"; do
+            if [ ! -f "$cmd" ]; then
+              echo "ERROR: Missing command file: $cmd"
+              exit 1
+            fi
+
+            # Check has frontmatter
+            if ! head -1 "$cmd" | grep -q "^---"; then
+              echo "ERROR: Missing frontmatter in $cmd"
+              exit 1
+            fi
+
+            echo "  OK: $cmd"
+          done
+
+          echo "All command files valid!"
+
+      - name: Check reference files
+        run: |
+          echo "Checking reference documentation..."
+
+          required_refs=(
+            "references/anthropic-spec.md"
+            "references/validation-rules.md"
+            "references/quality-rubric.md"
+          )
+
+          for ref in "${required_refs[@]}"; do
+            if [ ! -f "$ref" ]; then
+              echo "ERROR: Missing reference: $ref"
+              exit 1
+            fi
+            echo "  OK: $ref"
+          done
+
+          echo "All references present!"
