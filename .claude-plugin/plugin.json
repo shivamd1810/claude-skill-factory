@@ -1,0 +1,57 @@
+{
+  "name": "skill-factory",
+  "version": "1.0.0",
+  "description": "Create, validate, and distribute Claude Code skills following Anthropic's best practices and the agentskills.io standard",
+  "author": "Claude Skill Factory Contributors",
+  "repository": "https://github.com/shivamd1810/claude-skill-factory",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "ai-skills",
+    "agent-skills",
+    "skill-factory",
+    "agentskills",
+    "prompt-engineering"
+  ],
+  "skills": [
+    {
+      "name": "skill-factory",
+      "path": "SKILL.md",
+      "description": "Auto-triggers for skill creation and validation tasks"
+    }
+  ],
+  "commands": [
+    {
+      "name": "create-skill",
+      "path": "commands/create-skill.md",
+      "description": "Launch interactive skill creation wizard"
+    },
+    {
+      "name": "validate-skill",
+      "path": "commands/validate-skill.md",
+      "description": "Run 7-point validation against best practices"
+    },
+    {
+      "name": "skill-score",
+      "path": "commands/skill-score.md",
+      "description": "Get quality score (0-100) with breakdown"
+    },
+    {
+      "name": "package-skill",
+      "path": "commands/package-skill.md",
+      "description": "Create distribution ZIP with documentation"
+    }
+  ],
+  "agents": [
+    {
+      "name": "skill-wizard",
+      "path": "agents/skill-wizard.md",
+      "description": "Guided conversation to gather requirements"
+    },
+    {
+      "name": "skill-reviewer",
+      "path": "agents/skill-reviewer.md",
+      "description": "Deep quality analysis and improvement suggestions"
+    }
+  ]
+}
